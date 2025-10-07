@@ -5,3 +5,4 @@ pluggy==1.6.0
 pygame==2.6.1
 Pygments==2.19.2
 pytest==8.4.2
+pyinstaller>=5.0
