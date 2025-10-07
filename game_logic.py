@@ -5,11 +5,12 @@ import random
 
 # ---------- Sudoku logic (classe) ----------
 class SudokuGame:
-    def __init__(self):
+    def __init__(self, n_remove=40):
         self.grid = np.zeros((9, 9), dtype=int)  # usada pelo solver para construir solução
         self.numeros = list(range(1, 10))
         self.original = None  # solução completa (preenchida)
         self.change = None    # puzzle com buracos (visível ao jogador)
+        self.n_remove = n_remove 
 
     def pode_colocar(self, linha, coluna, numero):
         # verifica linha e coluna
@@ -38,19 +39,21 @@ class SudokuGame:
                     return False
         return True
 
-    def generate(self, n_remove=30):
-        # gera solução completa e depois remove números para criar puzzle
+    def generate(self, n_remove=None):
+        # atualiza self.n_remove somente se um valor foi passado
+        if n_remove is not None:
+            self.n_remove = n_remove
+
+        # gera solução completa
         self.grid[:] = 0
         self.resolver_grid()
         self.original = self.grid.copy()
-        # create change (puzzle)
+
+        # cria puzzle com buracos usando self.n_remove
         self.change = self.original.copy()
-        to_remove = n_remove
-        # remove unique positions
         positions = [(i, j) for i in range(9) for j in range(9)]
-        # shuffle positions and pop first to_remove
         random.shuffle(positions)
-        for (i, j) in positions[:to_remove]:
+        for (i, j) in positions[:self.n_remove]:
             self.change[i][j] = 0
 
     def is_solved_by_player(self, player_grid):
