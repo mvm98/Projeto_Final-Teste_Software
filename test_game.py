@@ -1,8 +1,8 @@
-# test_game.py
+# test_game.py (versão corrigida)
 import pytest
 import pygame
 import numpy as np
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, MagicMock
 from game import SudokuUI
 from game_logic import SudokuGame
 
@@ -30,11 +30,23 @@ class TestSudokuUI:
 
     @pytest.fixture
     def ui(self, mock_game):
-        """Fixture para criar instância do SudokuUI"""
+        """Fixture para criar instância do SudokuUI com todos os mocks necessários"""
         with patch('pygame.init'), \
-             patch('pygame.display.set_mode'), \
-             patch('pygame.display.set_caption'):
+             patch('pygame.display.set_mode') as mock_display, \
+             patch('pygame.display.set_caption'), \
+             patch('pygame.display.flip'), \
+             patch('pygame.font.SysFont') as mock_font:
+            
+            # Mock para as fontes
+            mock_font_instance = Mock()
+            mock_font.return_value = mock_font_instance
+            
+            # Mock para a tela
+            mock_screen = Mock()
+            mock_display.return_value = mock_screen
+            
             ui = SudokuUI(mock_game)
+            ui.screen = mock_screen  # Garante que usamos o mock
             return ui
 
     def test_init(self, ui, mock_game):
@@ -137,6 +149,7 @@ class TestSudokuUI:
         ui.handle_key(pygame.K_5)
         
         # Não deve causar erro ou alterar estado
+        assert ui.player_grid[0][0] == 0  # Célula permanece vazia
 
     def test_handle_key_original_cell(self, ui, mock_game):
         """Testa tentativa de alterar célula original"""
@@ -178,11 +191,32 @@ class TestSudokuUI:
         ui.player_grid[0][0] = 0  # Última célula vazia
         ui.selected = (0, 0)
         
-        with patch.object(ui, 'draw_victory') as mock_draw:
+        with patch.object(ui, 'draw_victory') as mock_draw, \
+             patch('pygame.display.flip'), \
+             patch('pygame.time.wait'):
+            
             ui.handle_key(pygame.K_5)  # Último número correto
             
             mock_draw.assert_called_once()
             assert ui.running == False
+
+    def test_victory_via_hint(self, ui, mock_game):
+        """Testa vitória através de dica que completa o puzzle"""
+        ui.player_grid = mock_game.original.copy()
+        ui.player_grid[0][0] = 0  # Última célula vazia
+        ui.hints_used = 2  # Uma dica disponível
+        
+        with patch('random.choice') as mock_choice, \
+             patch.object(ui, 'draw_victory') as mock_draw, \
+             patch('pygame.display.flip'), \
+             patch('pygame.time.wait'):
+            
+            mock_choice.return_value = (0, 0)
+            ui.handle_key(pygame.K_h)
+            
+            mock_draw.assert_called_once()
+            assert ui.running == False
+            assert ui.hints_used == 3
 
     def test_reset_game(self, ui, mock_game):
         """Testa reset completo do jogo"""
@@ -212,17 +246,78 @@ class TestSudokuUI:
             assert np.all(ui.suggestions == 0)
             assert len(ui.hint_cells) == 0
 
+    def test_draw_victory_flow(self, ui):
+        """Testa o fluxo completo de vitória"""
+        with patch.object(ui, 'screen') as mock_screen, \
+             patch('pygame.Surface') as mock_surface, \
+             patch.object(ui, 'font') as mock_font, \
+             patch('pygame.font.Font') as mock_pygame_font, \
+             patch('pygame.display.flip'):
+            
+            # Mock das superfícies
+            mock_surface_instance = Mock()
+            mock_surface.return_value = mock_surface_instance
+            
+            # Mock das fontes
+            mock_font_instance = Mock()
+            mock_font.render.return_value = mock_font_instance
+            mock_pygame_font.return_value = mock_font_instance
+            
+            ui.draw_victory()
+            
+            # Verifica se os métodos foram chamados
+            mock_surface.assert_called_once()
+            mock_surface_instance.set_alpha.assert_called_once_with(200)
+            mock_surface_instance.fill.assert_called_once_with((0, 0, 0))
+            mock_screen.blit.assert_called()
+            assert ui.victory == True
+
+    def test_draw_game_over_flow(self, ui):
+        """Testa o fluxo completo de game over"""
+        with patch.object(ui, 'screen') as mock_screen, \
+             patch('pygame.Surface') as mock_surface, \
+             patch.object(ui, 'font') as mock_font, \
+             patch('pygame.font.Font') as mock_pygame_font, \
+             patch('pygame.display.flip'):
+            
+            # Mock das superfícies
+            mock_surface_instance = Mock()
+            mock_surface.return_value = mock_surface_instance
+            
+            # Mock das fontes
+            mock_font_instance = Mock()
+            mock_font.render.return_value = mock_font_instance
+            mock_pygame_font.return_value = mock_font_instance
+            
+            ui.draw_game_over()
+            
+            # Verifica se os métodos foram chamados
+            mock_surface.assert_called_once()
+            mock_surface_instance.set_alpha.assert_called_once_with(200)
+            mock_surface_instance.fill.assert_called_once_with((0, 0, 0))
+            mock_screen.blit.assert_called()
+            assert ui.game_over == True
+
 # Testes de integração
 class TestIntegration:
     def test_complete_game_flow(self):
         """Testa fluxo completo do jogo"""
         with patch('pygame.init'), \
-             patch('pygame.display.set_mode'), \
-             patch('pygame.display.set_caption'):
+             patch('pygame.display.set_mode') as mock_display, \
+             patch('pygame.display.set_caption'), \
+             patch('pygame.display.flip'), \
+             patch('pygame.font.SysFont') as mock_font:
+            
+            # Mock para as fontes e tela
+            mock_font_instance = Mock()
+            mock_font.return_value = mock_font_instance
+            mock_screen = Mock()
+            mock_display.return_value = mock_screen
             
             game = SudokuGame(n_remove=5)
             game.generate()
             ui = SudokuUI(game)
+            ui.screen = mock_screen
             
             # Verifica estado inicial
             assert ui.running == True
