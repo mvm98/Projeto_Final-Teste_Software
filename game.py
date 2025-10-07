@@ -111,14 +111,9 @@ class SudokuUI:
         self.game_over = True
         pygame.display.flip()
 
-    def reset_game(self, n_remove=3):
-        """
-        Reinicia o jogo: gera novo Sudoku, reseta todos os estados do UI.
-        """
-        # recria/gera um novo puzzle
-        self.game = SudokuGame()
-        self.game.generate(n_remove=n_remove)
-
+    def reset_game(self):
+    
+        self.game.generate()   
         # reseta estados do UI
         self.player_grid = self.game.change.copy()
         self.suggestions.fill(0)
@@ -128,6 +123,8 @@ class SudokuUI:
         self.hints_used = 0
         self.hint_cells.clear()
         self.running = True
+        self.victory = False
+        self.game_over = False
 
     def handle_click(self, pos, button):
         if not self.running:
@@ -142,7 +139,7 @@ class SudokuUI:
 
         # permitir sempre reiniciar com 'R', mesmo após game over / vitória
         if key == pygame.K_r:
-            self.reset_game(n_remove=3)
+            self.reset_game()
             return
         
         elif key == pygame.K_h:  # tecla H para pedir ajuda
@@ -235,7 +232,7 @@ class SudokuUI:
 
 # ---------- main ----------
 if __name__ == "__main__":
-    game = SudokuGame()
-    game.generate(n_remove=3)
+    game = SudokuGame(n_remove=5)
+    game.generate()
     ui = SudokuUI(game)
     ui.run()
